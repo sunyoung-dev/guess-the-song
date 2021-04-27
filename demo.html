@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    <h1>🎉 노래 맞추기 🎉</h1>
+    <div>
+        도입부를 1초 듣고 어떤 곡인지 제목을 맞추세요 </br>
+        잘 모르겠으면 재생 옆의 버튼을 누르세요 1초씩 증가합니다 </br></br>
+    </div>
+
+    <div id="initialSetupArea" style="margin-top: 20px">
+      유투브 재생목록 코드 :
+      <input type="text" id="playlist">
+      <button id="playlistSubmit" onclick="onPlaylistSubmit()">확인</button>
+    </div>
+
+    <h2 id="question"></h2>
+    <div id="hiddenPlayer"></div>
+    <div id="publicPlayer" class="answerArea"></div>
+    <div id="alterArea" class="alterArea"></div>
+    <div class="border"></div>
+    <div>
+        <button onclick="playVideo()">재생</button>
+        <button id="addSecondsBtn" onclick="addSecondsAndPlay()">2초 듣기</button>
+        <button onclick="nextVideo()">다음문제</button>
+        <button onclick="showVideo()">정답보기</button>
+    </div>
+    <div class="border"></div>
+    <div>
+      제목 : 
+      <input type="text" id="answer">
+      <button id="answerSubmit" onclick="onAnswerSubmit()">확인</button>
+      <div id="asnwerResult"></div>
+    </div>
+
+    <script>
+      function onPlaylistSubmit() {
+        addYouTubeIframeApi();
+        document.getElementById("initialSetupArea").style.display= "none";
+      }
+
+      function addYouTubeIframeApi() {
+        var tag = document.createElement('script');
+
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+      }
+
+      var questionNumber = 1;
+      var hiddenPlayer;
+      var public;
+      function onYouTubeIframeAPIReady() {
+        hiddenPlayer = new YT.Player('hiddenPlayer', {
+          height: '0',
+          width: '0',
+          events: {
+            'onReady': onPlayerReady,
+            'onStateChange': onHiddenPlayerStateChange,
+            'onError': onError
+          }
+        });
+
+        public = new YT.Player('publicPlayer', {
+          height: '360',
+          width: '640',
+        });
+      }
+
+      var playlistLength;
+      function onPlayerReady(event) {
+        var listCode = document.getElementById("playlist").value;
+
+        event.target.cuePlaylist({
+            listType:'playlist',
+            list: listCode,
+            index: 1,
+            startSeconds: 0,
+            suggestedQuality: 'small'
+          });
+
+        setTimeout(function() {
+          event.target.setShuffle(true);
+          playlistLength = event.target.getPlaylist().length;
+          setQuestionNumber();
+        }, 500);
+      }
+
+      var title = "";
+      function onHiddenPlayerStateChange(event) {
+        if (title.length == 0) {
+          title = event.target.getVideoData().title;
+          
+        }
+        if (event.data == YT.PlayerState.PLAYING) {
+          setGuide("(재생 중)");
+          setTimeout(stopVideo, playSeconds*1000);
+        }
+        if (event.data == YT.PlayerState.ENDED) {
+          setTimeout(stopVideo, playSeconds);
+        }
+      }
+
+      var playSeconds = 1;
+      function addSecondsAndPlay() {
+        playSeconds += 1;
+        playVideo();
+        setPlayButton();
+      }
+
+      function onError(event) {
+        console.log(event.data);
+        hiddenPlayer.nextVideo();
+      }
+
+      function playVideo() {
+        setGuide("(로딩 중)");
+        hiddenPlayer.playVideo();
+      }
+
+      function stopVideo() {
+        hiddenPlayer.stopVideo();
+        setGuide("끝!");
+      }
+
+      function nextVideo() {
+        playSeconds = 1;
+        questionNumber += 1;
+        title = "";
+        
+        stopAndHidePublicPlayer();
+        setQuestionNumber();
+        setAnswerResult("");
+        clearAnswer();
+        setPlayButton();
+
+        if (questionNumber > playlistLength) {
+          setGuide("또 오세요 BYE!");
+        } else {
+          setGuide("(로딩 중)");
+          hiddenPlayer.nextVideo();
+        }
+      }
+
+      function setQuestionNumber() {
+        var text = `${questionNumber}번 문제 (${questionNumber}/${playlistLength})`;
+        if (questionNumber >= playlistLength) {
+          text = "마지막 문제";
+        }
+        document.getElementById("question").innerText = text;
+      }
+
+      function onAnswerSubmit() {
+        var input = document.getElementById("answer").value;
+        
+        var titleStr = title.toLowerCase();
+        var inputStr = input.toLowerCase();
+        
+        if (input.length == 0) {
+          setAnswerResult('밑장빼기냐!');
+          return;
+        }
+
+        if (title.toLowerCase().includes(input.toLowerCase())) {
+          setAnswerResult("");
+          showVideo();
+        } else {
+          setAnswerResult(`${input}? 아니죠`);
+        }
+      }
+
+      function showVideo() {
+        var videoId = hiddenPlayer.getVideoData().video_id;
+        public.loadVideoById(videoId, 0, 'large');
+        document.getElementById("publicPlayer").style.display= "block";
+        document.getElementById("alterArea").style.display= "none";
+      }
+
+      function stopAndHidePublicPlayer() {
+        public.stopVideo();
+        document.getElementById("publicPlayer").style.display= "none";
+        document.getElementById("alterArea").style.display= "block";
+      }
+
+      function setAnswerResult(str) {
+        document.getElementById("asnwerResult").innerText = str;
+      }
+
+      function setGuide(str) {
+        document.getElementById("alterArea").innerText = str;
+      }
+
+      function setPlayButton() {
+        document.getElementById("addSecondsBtn").innerHTML = `${playSeconds + 1}초 듣기`;
+      }
+
+      function clearAnswer() {
+        setGuide("");
+        document.getElementById("answer").value = "";
+      }
+    </script>
+    <style type="text/css">
+    @import url(http://fonts.googleapis.com/earlyaccess/nanumgothic.css);
+
+
+    * {
+        font-family: 'Nanum Gothic';
+        text-align: center;
+    }
+
+    .question {
+        font-size: 30px;
+    }
+
+    .alterArea{
+        height: 360px;
+        width: 640px;
+        font-size : 50px;
+        text-align: center;
+        margin: auto;
+        vertical-align: middle;
+        line-height: 360px;
+    }
+
+    .answerArea {
+        display: none;
+        margin: auto;
+    }
+
+    .border {
+        height: 20px;
+    }
+
+    .profile {
+        height: 100px;
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    input {
+        text-align : left;
+    }
+    </style>
+  </body>
+</html>
